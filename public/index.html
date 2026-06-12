@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Code Duel</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="menu">
+    <h1>Code Duel</h1>
+    <input type="text" id="playerName" placeholder="Ваше имя (латиницей)" maxlength="15" autocomplete="off" />
+    <p id="nameError" style="color:#e74c3c; display:none; font-size:14px;">Имя должно содержать только латинские буквы</p>
+    <button id="createRoomBtn">Создать комнату</button>
+    <div id="roomCodeDisplay" style="display:none;">
+      Код комнаты: <span id="roomCode"></span>
+    </div>
+    <hr>
+    <input type="text" id="joinCodeInput" placeholder="Введите код комнаты" maxlength="5" autocomplete="off" />
+    <button id="joinRoomBtn">Присоединиться</button>
+    <p id="errorMsg" style="color:#e74c3c;"></p>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
