@@ -1,4 +1,4 @@
-/* style.css */
+/* style.css — добавлен блок для отображения кода комнаты */
 * {
   margin: 0;
   padding: 0;
@@ -87,6 +87,14 @@ button:hover {
 
 #playersInfo {
   font-size: 1.2rem;
+}
+
+#roomCodeDisplay {
+  font-size: 1rem;
+  background: #2a2a3e;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #c77dff;
 }
 
 #mainArea {

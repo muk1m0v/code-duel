@@ -1,4 +1,4 @@
-// client.js
+// client.js — добавлено отображение кода комнаты на странице битвы
 const socket = io();
 
 let currentRoomCode = null;
@@ -7,7 +7,6 @@ let gameActive = false;
 
 socket.on('connect', () => {
   mySocketId = socket.id;
-  // если мы на странице комнаты, синхронизируемся
   if (document.getElementById('codeEditor')) {
     requestRoomSync();
   }
@@ -57,7 +56,6 @@ if (document.getElementById('createRoomBtn')) {
       if (res && res.success) {
         currentRoomCode = res.roomCode;
         sessionStorage.setItem('roomCode', currentRoomCode);
-        // сразу переходим в комнату
         window.location.href = '/room';
       } else {
         document.getElementById('errorMsg').textContent = res ? res.message : 'Ошибка создания комнаты';
@@ -100,6 +98,12 @@ if (document.getElementById('codeEditor')) {
 
   if (roomCode) {
     currentRoomCode = roomCode;
+
+    // Показываем код комнаты рядом с кнопкой
+    const roomCodeSpan = document.getElementById('roomCodeValue');
+    if (roomCodeSpan) {
+      roomCodeSpan.textContent = roomCode;
+    }
 
     const editor = document.getElementById('codeEditor');
     const previewFrame = document.getElementById('previewFrame');
@@ -186,7 +190,6 @@ if (document.getElementById('codeEditor')) {
       });
     }
 
-    // если сокет уже подключен — синхронизируемся (обработчик connect уже есть выше)
     if (socket.connected) {
       requestRoomSync();
     }
