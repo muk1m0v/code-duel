@@ -26,14 +26,14 @@ app.get('/room', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'room.html'));
 });
 
-// Блокировка телефонов
-app.use((req, res, next) => {
-  const ua = req.headers['user-agent'] || '';
-  if (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) {
-    return res.status(403).send('Сайт доступен только с ПК или ноутбука.');
-  }
-  next();
-});
+// // Блокировка телефонов
+// app.use((req, res, next) => {
+//   const ua = req.headers['user-agent'] || '';
+//   if (/Mobile|Android|iPhone|iPad|iPod/i.test(ua)) {
+//     return res.status(403).send('Сайт доступен только с ПК или ноутбука.');
+//   }
+//   next();
+// });
 
 const rooms = {};
 
