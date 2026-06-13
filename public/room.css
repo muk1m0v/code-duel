@@ -91,13 +91,16 @@ body {
   overflow: hidden;
 }
 
-.editor-tabs, .preview-tabs {
+.editor-tabs {
   display: flex;
   background: #1e1e2e;
   border-bottom: 1px solid #c77dff;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
 }
 
-.editor-tab, .preview-tab {
+.editor-tab {
   background: none;
   border: none;
   color: #aaa;
@@ -106,9 +109,25 @@ body {
   font-size: 13px;
 }
 
-.editor-tab.active, .preview-tab.active {
+.editor-tab.active {
   color: #c77dff;
   border-bottom: 2px solid #c77dff;
+}
+
+#viewBtn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #c77dff;
+  color: #c77dff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+#viewBtn:hover {
+  background: #c77dff22;
+  box-shadow: 0 0 5px #c77dff;
 }
 
 .editor-container {
@@ -148,45 +167,16 @@ body {
 #rightPanel {
   width: 50%;
   border-left: 2px solid #c77dff;
-  padding: 15px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   background: #12121f;
   overflow: hidden;
 }
 
-#progressContainer {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 12px;
-  background: #1a1a2e;
-  padding: 8px;
-  border-radius: 8px;
-}
-
-.progress-item {
-  flex: 1;
-  font-size: 13px;
-}
-
-.progress-bar {
-  background: #2a2a3e;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 4px;
-}
-
-.progress-fill {
-  width: 0%;
-  height: 100%;
-  background: #c77dff;
-  transition: width 0.3s;
-}
-
 #taskFrame {
   width: 100%;
-  flex: 1;
+  height: 100%;
   border: none;
   background: #1a1a2e;
 }
@@ -294,10 +284,9 @@ body {
   #timerDisplay { font-size: 1rem; }
   #roomCodeDisplay { font-size: 0.8rem; }
   #chatBtn, #submitBtn { padding: 4px 12px; font-size: 0.8rem; }
-  .editor-tab, .preview-tab { padding: 4px 10px; font-size: 12px; }
+  .editor-tab { padding: 4px 10px; font-size: 12px; }
+  #viewBtn { padding: 2px 10px; font-size: 11px; }
   #codeEditor { font-size: 12px; padding: 8px; }
-  #progressContainer { gap: 10px; padding: 6px; }
-  .progress-item { font-size: 12px; }
 }
 @media (max-width: 768px) {
   #mainArea { flex-direction: column; padding-top: 70px; }

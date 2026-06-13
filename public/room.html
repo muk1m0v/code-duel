@@ -23,41 +23,24 @@
       <div class="editor-tabs">
         <button class="editor-tab active" data-lang="html">HTML</button>
         <button class="editor-tab" data-lang="css">CSS</button>
+        <button id="viewBtn">View</button>
       </div>
       <div class="editor-container">
         <textarea id="codeEditor" placeholder="Введите HTML/CSS код..."></textarea>
       </div>
       <div class="preview-container">
-        <div class="preview-tabs">
-          <button class="preview-tab active" data-preview="task">Задание</button>
-          <button class="preview-tab" data-preview="my">Моё решение</button>
-        </div>
         <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>
       </div>
     </div>
     <div id="rightPanel">
-      <div id="progressContainer">
-        <div class="progress-item">
-          <span id="myProgressLabel">Я: 0%</span>
-          <div class="progress-bar"><div id="myProgressFill" class="progress-fill"></div></div>
-        </div>
-        <div class="progress-item">
-          <span id="opponentProgressLabel">Противник: 0%</span>
-          <div class="progress-bar"><div id="opponentProgressFill" class="progress-fill"></div></div>
-        </div>
-      </div>
-      <h3>Задание / Моё решение</h3>
-      <iframe id="taskFrame" src="/tasks/task1_desc.html" sandbox="allow-same-origin"></iframe>
+      <iframe id="taskFrame" src="/tasks/task1.html" sandbox="allow-same-origin"></iframe>
     </div>
   </div>
-  <!-- Скрытый iframe с эталоном для сравнения -->
   <iframe id="targetFrame" src="/tasks/task1.html" style="display:none;"></iframe>
-
   <div id="overlay" style="display:none;">
     <div id="overlayMsg"></div>
     <button id="okBtn">OK</button>
   </div>
-  <!-- Модальное окно чата -->
   <div id="chatModal" style="display:none;">
     <div class="chat-container">
       <div class="chat-header">
@@ -72,6 +55,6 @@
     </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+  <script src="editor.js"></script>
 </body>
 </html>

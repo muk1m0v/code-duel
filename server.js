@@ -16,6 +16,9 @@ app.get('/room', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'room.html'));
 });
 
+// Массив доступных заданий
+const TASKS = ['task1.html', 'task2.html', 'task3.html', 'task4.html', 'task5.html', 'task6.html', 'task7.html', 'task8.html'];
+
 const rooms = {};
 const socketToRoom = new Map();
 
@@ -52,7 +55,6 @@ function updateRating(winnerId, loserId, winnerToken, loserToken) {
   saveRatings();
   return { winnerGain, loserGain };
 }
-
 loadRatings();
 
 function cleanName(name) { return String(name || '').trim().slice(0,30) || 'Игрок'; }
@@ -67,6 +69,7 @@ function buildRoomState(room) {
     winner: room.winner || null,
     winnerName: room.winnerName || null,
     timeLimit: room.timeLimit,
+    currentTask: room.currentTask || null,
     progress: room.progress || {}
   };
 }
@@ -97,16 +100,20 @@ function detachSocket(socket, notify) {
 
 function startGame(room) {
   if (room.started || room.finished || room.players.length !== 2) return;
+  const randomTask = TASKS[Math.floor(Math.random() * TASKS.length)];
+  room.currentTask = randomTask;
   room.started = true;
   room.startTime = Date.now();
   room.progress = {};
   io.to(room.code).emit('gameStart', {
     roomCode: room.code,
-    task: 'task1',
+    task: randomTask,
+    taskUrl: `/tasks/${randomTask}`,
     timeLimit: room.timeLimit,
     players: room.players.map(p => ({ id: p.id, name: p.name }))
   });
   emitRoomState(room);
+  console.log(`[${room.code}] Игра началась. Задание: ${randomTask}`);
 }
 
 function replacePlayerSocket(room, oldId, newSocket) {
@@ -211,7 +218,7 @@ io.on('connection', (socket) => {
       code,
       players: [{ id: socket.id, name: cleanName(name), token: cleanToken(token) }],
       started: false, finished: false, createdAt: Date.now(),
-      timeLimit: timeLimit || 600, progress: {}
+      timeLimit: timeLimit || 600, progress: {}, currentTask: null
     };
     socket.join(code); socketToRoom.set(socket.id, code);
     cb({ success: true, roomCode: code, state: buildRoomState(rooms[code]) });
@@ -225,7 +232,6 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('chatMessage', { sender, text });
   });
   socket.on('submit', ({ roomCode, similarity }) => {
-    io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress, players: room.players });
     const room = rooms[roomCode];
     if (!room || !room.started || room.finished || room.players.length !== 2) return;
     const player = room.players.find(p => p.id === socket.id);
@@ -233,7 +239,7 @@ io.on('connection', (socket) => {
     const score = Number(similarity);
     if (isNaN(score)) return;
     room.progress[player.id] = Math.min(100, Math.max(0, score));
-    io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress });
+    io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress, players: room.players });
     if (score >= 80) {
       room.finished = true;
       room.winner = socket.id;
@@ -246,7 +252,7 @@ io.on('connection', (socket) => {
       });
       emitRoomState(room);
     } else {
-      socket.emit('submitResult', { success: false, similarity: Math.round(score), message: `Схожесть ${Math.round(score)}% (нужно >=80%)` });
+      socket.emit('submitResult', { success: false, similarity: Math.round(score), message: `Схожесть ${Math.round(score)}% (нужно ≥80%)` });
     }
   });
   socket.on('disconnect', () => detachSocket(socket, true));
