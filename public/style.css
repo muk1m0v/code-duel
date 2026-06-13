@@ -1,5 +1,4 @@
-/* style.css - Минималистичный темный интерфейс для Code Duel */
-
+/* style.css — for index.html (main menu) */
 * {
   margin: 0;
   padding: 0;
@@ -7,133 +6,135 @@
 }
 
 body {
-  background: linear-gradient(145deg, #0a0f1a 0%, #0c1220 100%);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  background: #f5f5f7; /* мягкий серо-бежевый фон Apple */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
-  color: #eef2ff;
+  color: #1d1c1f;
 }
 
 h1 {
   font-weight: 600;
   font-size: 2.8rem;
-  letter-spacing: -0.01em;
-  background: linear-gradient(135deg, #ffffff, #a5b4fc);
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #1d1c1f 0%, #3a3a3e 100%);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
-  margin-bottom: 2.5rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 .menu {
-  max-width: 900px;
-  width: 100%;
   display: flex;
   flex-wrap: wrap;
   gap: 2rem;
   justify-content: center;
+  max-width: 1000px;
+  width: 100%;
 }
 
 .box_1, .box_2 {
-  background: rgba(18, 25, 40, 0.75);
-  backdrop-filter: blur(12px);
-  border-radius: 2rem;
-  padding: 2rem 2rem 2.2rem;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(2px);
+  border-radius: 32px;
+  padding: 2rem 2rem 2rem 2rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05), 0 0 0 0.5px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s ease;
   flex: 1;
-  min-width: 280px;
-  box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-width: 260px;
+  border: 0.5px solid rgba(255, 255, 255, 0.6);
 }
 
 .box_1:hover, .box_2:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 30px 55px -12px rgba(0, 0, 0, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.08);
 }
 
 h3 {
-  font-weight: 500;
-  font-size: 1.6rem;
-  margin-bottom: 1.5rem;
-  color: #e0e7ff;
-  letter-spacing: -0.2px;
+  font-weight: 590;
+  font-size: 1.65rem;
+  margin-bottom: 1.25rem;
+  color: #1d1c1f;
+  letter-spacing: -0.3px;
 }
 
-input, select, button {
-  font-family: inherit;
+input, select {
   width: 100%;
-  padding: 0.85rem 1.2rem;
+  padding: 14px 18px;
   margin-bottom: 1rem;
-  border-radius: 1.2rem;
-  border: none;
-  background: #111827;
-  color: #f3f4f6;
-  font-size: 0.95rem;
+  background: #ffffff;
+  border: 1px solid #e2e2e6;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-family: inherit;
   transition: all 0.2s;
+  color: #1d1c1f;
   outline: none;
 }
 
-input {
-  border: 1px solid #2d3748;
-}
-
-input:focus {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
-  background: #0f172a;
-}
-
-select {
-  cursor: pointer;
-  background: #111827;
-  border: 1px solid #2d3748;
+input:focus, select:focus {
+  border-color: #007aff;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
 button {
-  background: linear-gradient(105deg, #4f46e5 0%, #7c3aed 100%);
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  background: #ffffff;
+  border: 1px solid #d9d9df;
+  padding: 12px 20px;
+  border-radius: 40px;
+  font-weight: 500;
+  font-size: 1rem;
+  font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
+  color: #1d1c1f;
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+button#createRoomBtn, button#joinRoomBtn {
+  background: #007aff;
   border: none;
-  margin-top: 0.5rem;
+  color: white;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
 }
 
-button:hover {
+button#createRoomBtn:hover, button#joinRoomBtn:hover {
+  background: #005fc1;
   transform: scale(0.98);
-  background: linear-gradient(105deg, #6366f1 0%, #8b5cf6 100%);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
 }
 
-#nameError {
+button:active {
+  transform: scale(0.97);
+}
+
+#errorMsg, #nameError {
   font-size: 0.8rem;
   margin-top: -0.5rem;
-  margin-bottom: 1rem;
-  padding-left: 0.5rem;
-  color: #f87171;
-}
-
-#errorMsg {
-  margin-top: 1rem;
-  font-size: 0.85rem;
-  text-align: center;
-  color: #f87171;
+  margin-bottom: 0.75rem;
+  background: rgba(255, 235, 235, 0.9);
+  border-radius: 30px;
+  padding: 4px 12px;
+  display: inline-block;
+  width: auto;
 }
 
 #foot {
-  margin-top: 3.5rem;
-  font-size: 0.85rem;
-  opacity: 0.6;
-  letter-spacing: 0.3px;
+  margin-top: 3rem;
+  font-size: 0.8rem;
+  color: #8e8e93;
+  text-align: center;
 }
 
-@media (max-width: 750px) {
-  body { padding: 1rem; }
+@media (max-width: 680px) {
+  body { padding: 1.5rem; }
   h1 { font-size: 2rem; }
   .box_1, .box_2 { padding: 1.5rem; }
 }
