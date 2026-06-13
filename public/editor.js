@@ -46,7 +46,7 @@ function initOfflineDetector() {
 }
 initOfflineDetector();
 
-// ---------- Нумерация строк (исправленная синхронизация) ----------
+// ---------- Нумерация строк ----------
 function updateLineNumbers() {
   const lines = editor.value.split('\n');
   const lineCount = lines.length;
@@ -380,20 +380,49 @@ if (roomCode) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
   });
 
+  // ---------- ОБНОВЛЁННЫЙ ОБРАБОТЧИК КНОПКИ "ГОТОВО" ----------
   submitBtn.addEventListener('click', async () => {
     if (!gameActive) return;
     submitBtn.disabled = true;
     submitBtn.textContent = 'Проверка...';
+
     try {
+      // Ждём полной загрузки обоих iframe
+      await Promise.all([
+        waitForFrameLoad(targetFrame),
+        waitForFrameLoad(previewFrame)
+      ]);
+
       const similarity = await comparePreviews();
-      socket.emit('submit', { roomCode: currentRoomCode, similarity: Math.round(similarity) });
+      const rounded = Math.round(similarity);
+      
+      if (rounded >= 85) {
+        // Победа – отправляем на сервер
+        socket.emit('submit', { roomCode: currentRoomCode, similarity: rounded });
+      } else {
+        // Не хватило – показываем сообщение и разблокируем кнопку
+        showNotification(`😢 Сходство: ${rounded}%. Нужно ≥85%. Попробуйте ещё!`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Готово';
+      }
     } catch (err) {
       console.error(err);
-      showNotification('Ошибка сравнения. Попробуйте ещё раз.');
+      showNotification('Ошибка сравнения. Убедитесь, что страницы полностью загружены.');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Готово';
     }
   });
+
+  // Вспомогательная функция ожидания загрузки iframe
+  function waitForFrameLoad(frame) {
+    return new Promise((resolve) => {
+      if (frame.contentDocument && frame.contentDocument.readyState === 'complete') {
+        resolve();
+      } else {
+        frame.addEventListener('load', resolve, { once: true });
+      }
+    });
+  }
 
   document.getElementById('okBtn').addEventListener('click', () => window.location.href = '/');
 

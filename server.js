@@ -244,7 +244,9 @@ io.on('connection', (socket) => {
     if (isNaN(score)) return;
     room.progress[player.id] = Math.min(100, Math.max(0, score));
     io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress, players: room.players });
-    if (score >= 80) {
+    
+    // ИЗМЕНЕНО: порог 85%
+    if (score >= 85) {
       room.finished = true;
       room.winner = socket.id;
       room.winnerName = player.name;
@@ -256,7 +258,11 @@ io.on('connection', (socket) => {
       });
       emitRoomState(room);
     } else {
-      socket.emit('submitResult', { success: false, similarity: Math.round(score), message: `Схожесть ${Math.round(score)}% (нужно ≥80%)` });
+      socket.emit('submitResult', { 
+        success: false, 
+        similarity: Math.round(score), 
+        message: `Схожесть ${Math.round(score)}% (нужно ≥85%)` 
+      });
     }
   });
   socket.on('disconnect', () => detachSocket(socket, true));
