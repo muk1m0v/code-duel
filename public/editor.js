@@ -1,3 +1,4 @@
+// editor.js — улучшенный редактор с подсказками, автозакрытием, нумерацией строк и синхронизацией таймера
 const socket = io();
 
 let currentRoomCode = null;
@@ -8,7 +9,230 @@ let htmlCode = '', cssCode = '';
 let timerInterval = null;
 let totalTimeSeconds = 0;
 let showingMyCode = false;
+let remainingTimeOnStart = null;
 
+// Элементы
+const editor = document.getElementById('codeEditor');
+const previewFrame = document.getElementById('previewFrame');
+const taskFrame = document.getElementById('taskFrame');
+const targetFrame = document.getElementById('targetFrame');
+const submitBtn = document.getElementById('submitBtn');
+const overlay = document.getElementById('overlay');
+const overlayMsg = document.getElementById('overlayMsg');
+const myNameSpan = document.getElementById('myName');
+const opponentNameSpan = document.getElementById('opponentName');
+const timerDisplay = document.getElementById('timerDisplay');
+const chatBtn = document.getElementById('chatBtn');
+const chatModal = document.getElementById('chatModal');
+const closeChatBtn = document.getElementById('closeChatBtn');
+const sendChatBtn = document.getElementById('sendChatBtn');
+const chatInput = document.getElementById('chatInput');
+const chatMessages = document.getElementById('chatMessages');
+const viewBtn = document.getElementById('viewBtn');
+const lineNumbersDiv = document.getElementById('lineNumbers');
+const suggestionsDiv = document.getElementById('suggestions');
+
+// ---------- Офлайн-индикатор ----------
+function initOfflineDetector() {
+  const overlayDiv = document.createElement('div');
+  overlayDiv.id = 'offlineOverlay';
+  overlayDiv.className = 'offline-overlay';
+  overlayDiv.innerHTML = '<div>🌐 Нет соединения с интернетом</div><div style="font-size:1rem;">Проверьте сеть</div>';
+  document.body.appendChild(overlayDiv);
+  function update() {
+    overlayDiv.style.display = navigator.onLine ? 'none' : 'flex';
+  }
+  window.addEventListener('online', update);
+  window.addEventListener('offline', update);
+  update();
+}
+initOfflineDetector();
+
+// ---------- Нумерация строк ----------
+function updateLineNumbers() {
+  const lines = editor.value.split('\n');
+  const lineCount = lines.length;
+  let numbers = '';
+  for (let i = 1; i <= lineCount; i++) numbers += i + '\n';
+  lineNumbersDiv.textContent = numbers;
+  lineNumbersDiv.style.height = editor.scrollHeight + 'px';
+}
+editor.addEventListener('scroll', () => {
+  lineNumbersDiv.scrollTop = editor.scrollTop;
+});
+editor.addEventListener('input', () => {
+  updateLineNumbers();
+  const val = editor.value;
+  if (currentLang === 'html') htmlCode = val;
+  else cssCode = val;
+  updatePreview();
+  handleAutoCloseTag();   // авто-закрытие тегов
+  showSuggestions();      // вызов подсказок
+});
+
+// ---------- Автозакрытие тегов (HTML) ----------
+let lastTypedChar = '';
+editor.addEventListener('keydown', (e) => {
+  if (e.key === '>' && currentLang === 'html') {
+    const cursorPos = editor.selectionStart;
+    const textBefore = editor.value.substring(0, cursorPos);
+    const tagMatch = textBefore.match(/<(\w+)(?:\s[^>]*)?$/);
+    if (tagMatch) {
+      const tagName = tagMatch[1];
+      e.preventDefault();
+      const closeTag = `></${tagName}>`;
+      editor.setRangeText(closeTag, cursorPos, cursorPos, 'end');
+      editor.setSelectionRange(cursorPos, cursorPos);
+      updateLineNumbers();
+    }
+  }
+  if (e.key === 'Enter' && currentLang === 'html') {
+    const cursorPos = editor.selectionStart;
+    const textBefore = editor.value.substring(0, cursorPos);
+    if (textBefore.trim().endsWith('!')) {
+      e.preventDefault();
+      const snippet = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    \n\n
+</body>
+</html>`;
+      editor.setRangeText(snippet, cursorPos-1, cursorPos, 'end');
+      editor.setSelectionRange(cursorPos + snippet.indexOf('<body>') + 6, cursorPos + snippet.indexOf('<body>') + 6);
+      updateLineNumbers();
+    }
+  }
+});
+
+function handleAutoCloseTag() {
+  // Доп. логика (уже обработано выше)
+}
+
+// ---------- Подсказки HTML/CSS ----------
+const htmlHints = [
+  'div', 'span', 'p', 'a', 'img', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'table', 'tr', 'td', 'form', 'input', 'button', 'section', 'header', 'footer', 'nav'
+];
+const cssHints = [
+  'color', 'background', 'background-color', 'margin', 'padding', 'border', 'font-size',
+  'font-family', 'width', 'height', 'display', 'flex', 'grid', 'align-items', 'justify-content',
+  'position', 'top', 'left', 'right', 'bottom', 'box-shadow', 'border-radius'
+];
+
+let currentSuggestions = [];
+let selectedSuggestionIndex = 0;
+
+function showSuggestions() {
+  const cursorPos = editor.selectionStart;
+  const textBefore = editor.value.substring(0, cursorPos);
+  let word = '';
+  let startIdx = cursorPos;
+  const lastSpace = textBefore.lastIndexOf(/\s/.exec(textBefore)?.[0]);
+  if (currentLang === 'html') {
+    const match = textBefore.match(/<(\w*)$/);
+    if (match) {
+      word = match[1];
+      startIdx = cursorPos - word.length;
+      currentSuggestions = htmlHints.filter(h => h.startsWith(word));
+    } else currentSuggestions = [];
+  } else if (currentLang === 'css') {
+    const match = textBefore.match(/([a-z-]+)$/);
+    if (match && !match[0].startsWith('</')) {
+      word = match[1];
+      startIdx = cursorPos - word.length;
+      currentSuggestions = cssHints.filter(h => h.startsWith(word));
+    } else currentSuggestions = [];
+  }
+  if (currentSuggestions.length > 0 && word.length > 0) {
+    selectedSuggestionIndex = 0;
+    renderSuggestions();
+    const rect = editor.getBoundingClientRect();
+    const coords = getCaretCoordinates(editor, cursorPos);
+    suggestionsDiv.style.display = 'block';
+    suggestionsDiv.style.left = rect.left + coords.left + 'px';
+    suggestionsDiv.style.top = rect.top + coords.top + 20 + 'px';
+  } else {
+    suggestionsDiv.style.display = 'none';
+  }
+}
+
+function renderSuggestions() {
+  suggestionsDiv.innerHTML = '';
+  currentSuggestions.forEach((s, idx) => {
+    const div = document.createElement('div');
+    div.textContent = s;
+    if (idx === selectedSuggestionIndex) div.classList.add('selected');
+    div.addEventListener('click', () => {
+      applySuggestion(s);
+    });
+    suggestionsDiv.appendChild(div);
+  });
+}
+
+function applySuggestion(suggestion) {
+  const cursorPos = editor.selectionStart;
+  const textBefore = editor.value.substring(0, cursorPos);
+  let wordStart = cursorPos;
+  if (currentLang === 'html') {
+    const match = textBefore.match(/<(\w*)$/);
+    if (match) wordStart = cursorPos - match[1].length;
+  } else if (currentLang === 'css') {
+    const match = textBefore.match(/([a-z-]+)$/);
+    if (match) wordStart = cursorPos - match[1].length;
+  }
+  editor.setRangeText(suggestion, wordStart, cursorPos, 'end');
+  updateLineNumbers();
+  suggestionsDiv.style.display = 'none';
+  editor.focus();
+}
+
+// Подсказки на клавиши
+editor.addEventListener('keydown', (e) => {
+  if (suggestionsDiv.style.display === 'block') {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedSuggestionIndex = (selectedSuggestionIndex + 1) % currentSuggestions.length;
+      renderSuggestions();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedSuggestionIndex = (selectedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+      renderSuggestions();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (currentSuggestions[selectedSuggestionIndex]) applySuggestion(currentSuggestions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      suggestionsDiv.style.display = 'none';
+    }
+  }
+});
+
+// Получение координат курсора в textarea
+function getCaretCoordinates(element, position) {
+  const div = document.createElement('div');
+  const style = window.getComputedStyle(element);
+  const properties = ['font-family', 'font-size', 'font-weight', 'word-wrap', 'white-space', 'line-height'];
+  properties.forEach(prop => div.style[prop] = style[prop]);
+  div.style.position = 'absolute';
+  div.style.visibility = 'hidden';
+  div.style.top = '0';
+  div.style.left = '0';
+  div.style.whiteSpace = 'pre-wrap';
+  div.textContent = element.value.substring(0, position);
+  const span = document.createElement('span');
+  span.textContent = element.value.substring(position) || '.';
+  div.appendChild(span);
+  document.body.appendChild(div);
+  const { offsetLeft, offsetTop } = span;
+  document.body.removeChild(div);
+  return { left: offsetLeft, top: offsetTop };
+}
+
+// ---------- Остальная логика игры с синхронизацией таймера ----------
 socket.on('connect', () => {
   mySocketId = socket.id;
   requestRoomSync();
@@ -30,30 +254,11 @@ const playerToken = getPlayerToken();
 if (roomCode) {
   currentRoomCode = roomCode;
   document.getElementById('roomCodeValue').textContent = roomCode;
-
-  const editor = document.getElementById('codeEditor');
-  const previewFrame = document.getElementById('previewFrame');
-  const taskFrame = document.getElementById('taskFrame');
-  const targetFrame = document.getElementById('targetFrame');
-  const submitBtn = document.getElementById('submitBtn');
-  const overlay = document.getElementById('overlay');
-  const overlayMsg = document.getElementById('overlayMsg');
-  const myNameSpan = document.getElementById('myName');
-  const opponentNameSpan = document.getElementById('opponentName');
-  const timerDisplay = document.getElementById('timerDisplay');
-  const chatBtn = document.getElementById('chatBtn');
-  const chatModal = document.getElementById('chatModal');
-  const closeChatBtn = document.getElementById('closeChatBtn');
-  const sendChatBtn = document.getElementById('sendChatBtn');
-  const chatInput = document.getElementById('chatInput');
-  const chatMessages = document.getElementById('chatMessages');
-  const viewBtn = document.getElementById('viewBtn');
-
   myNameSpan.textContent = myName;
   gameActive = false;
   submitBtn.disabled = true;
 
-  // Переключение HTML/CSS
+  // Переключение вкладок HTML/CSS
   const htmlTab = document.querySelector('.editor-tab[data-lang="html"]');
   const cssTab = document.querySelector('.editor-tab[data-lang="css"]');
   if (htmlTab && cssTab) {
@@ -63,6 +268,7 @@ if (roomCode) {
       cssTab.classList.remove('active');
       editor.value = htmlCode;
       updatePreview();
+      updateLineNumbers();
     });
     cssTab.addEventListener('click', () => {
       currentLang = 'css';
@@ -70,10 +276,10 @@ if (roomCode) {
       htmlTab.classList.remove('active');
       editor.value = cssCode;
       updatePreview();
+      updateLineNumbers();
     });
   }
 
-  // Кнопка View
   viewBtn.addEventListener('click', () => {
     if (!gameActive) return;
     showingMyCode = !showingMyCode;
@@ -96,19 +302,10 @@ if (roomCode) {
   function updatePreview() {
     const full = generateFullHTML(htmlCode, cssCode);
     previewFrame.srcdoc = full;
-    if (showingMyCode && gameActive) {
-      taskFrame.srcdoc = full;
-    }
+    if (showingMyCode && gameActive) taskFrame.srcdoc = full;
   }
 
-  editor.addEventListener('input', () => {
-    const val = editor.value;
-    if (currentLang === 'html') htmlCode = val;
-    else cssCode = val;
-    updatePreview();
-  });
-
-  function startGame() {
+  function startGame(initialRemainingSec = null) {
     if (gameActive) return;
     gameActive = true;
     submitBtn.disabled = false;
@@ -117,7 +314,7 @@ if (roomCode) {
     showingMyCode = false;
     viewBtn.textContent = 'View';
     if (timerInterval) clearInterval(timerInterval);
-    let remaining = totalTimeSeconds;
+    let remaining = (initialRemainingSec !== null) ? initialRemainingSec : totalTimeSeconds;
     updateTimerDisplay(remaining);
     timerInterval = setInterval(() => {
       if (!gameActive) return;
@@ -152,7 +349,9 @@ if (roomCode) {
         targetFrame.src = taskUrl;
         window.currentTask = state.currentTask;
       }
-      startGame();
+      // Важно: используем оставшееся время от сервера
+      const remaining = state.remainingTime !== null ? state.remainingTime : totalTimeSeconds;
+      if (!gameActive) startGame(remaining);
     }
     if (state.finished) {
       gameActive = false;
@@ -177,12 +376,6 @@ if (roomCode) {
     });
   }
 
-  socket.on('connect', () => {
-    mySocketId = socket.id;
-    requestRoomSync();
-  });
-  if (socket.connected) requestRoomSync();
-
   socket.on('roomState', (state) => {
     if (state.roomCode !== currentRoomCode) return;
     applyRoomState(state);
@@ -195,7 +388,7 @@ if (roomCode) {
     taskFrame.setAttribute('data-original-src', taskUrl);
     targetFrame.src = taskUrl;
     window.currentTask = data.task;
-    startGame();
+    startGame(totalTimeSeconds);
   });
   socket.on('submitResult', (res) => {
     if (!res.success) {
@@ -293,9 +486,13 @@ if (roomCode) {
     return (match / (w*h)) * 100;
   }
 
-  // Инициализация
+  // Инициализация редактора
   htmlCode = '';
   cssCode = '';
   editor.value = '';
+  updateLineNumbers();
   updatePreview();
+
+  if (socket.connected) requestRoomSync();
+  socket.on('connect', () => requestRoomSync());
 }

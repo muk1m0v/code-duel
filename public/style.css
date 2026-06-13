@@ -1,97 +1,139 @@
-/* style.css – главное меню */
+/* style.css - Минималистичный темный интерфейс для Code Duel */
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-::selection {
-  color: royalblue;
-  background: none;
-}
+
 body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #0f0f1a;
-  color: #fff;
-  height: 100vh;
-  overflow: hidden;
-  width: 100%;
+  background: linear-gradient(145deg, #0a0f1a 0%, #0c1220 100%);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 2rem;
+  color: #eef2ff;
 }
-#foot {
-  text-align: center;
-  color: #1d1d36;
-  padding: 10px;
-  font-size: 12px;
-  margin-top: 20px;
-}
-.menu {
-  width: 80%;
-  margin: 0 auto;
-  background-color: #1a1a2c;
-  padding: 10px;
-  height: 80vh;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-}
-.box_1, .box_2 {
-  border-radius: 10px;
-  width: 38%;
-  background-color: #0f0f1a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: auto;
-  padding: 20px 0;
-  margin-top: 0;
-}
-h3 {
-  padding: 15px;
-}
-input, select {
-  background: none;
-  border-radius: 10px;
-  border: none;
-  width: 80%;
-  padding: 15px;
-  font-size: 18px;
-  color: white;
-  margin-bottom: 10px;
-  outline: 1px solid white;
-}
-select option {
-  background: #0f0f1a;
-}
-button {
-  background: none;
-  color: yellow;
-  border: 1px solid yellow;
-  border-radius: 10px;
-  width: 40%;
-  margin-top: 15px;
-  padding: 15px 20px;
-  cursor: pointer;
-}
-button:hover {
-  box-shadow: 0px 0px 5px orange;
-  text-shadow: 1px 1px 5px orange;
-  transform: scale(1.02);
-  transition: all 0.3s;
-}
+
 h1 {
+  font-weight: 600;
+  font-size: 2.8rem;
+  letter-spacing: -0.01em;
+  background: linear-gradient(135deg, #ffffff, #a5b4fc);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  margin-bottom: 2.5rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.menu {
+  max-width: 900px;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.box_1, .box_2 {
+  background: rgba(18, 25, 40, 0.75);
+  backdrop-filter: blur(12px);
+  border-radius: 2rem;
+  padding: 2rem 2rem 2.2rem;
+  flex: 1;
+  min-width: 280px;
+  box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.box_1:hover, .box_2:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 30px 55px -12px rgba(0, 0, 0, 0.6);
+}
+
+h3 {
+  font-weight: 500;
+  font-size: 1.6rem;
+  margin-bottom: 1.5rem;
+  color: #e0e7ff;
+  letter-spacing: -0.2px;
+}
+
+input, select, button {
+  font-family: inherit;
+  width: 100%;
+  padding: 0.85rem 1.2rem;
+  margin-bottom: 1rem;
+  border-radius: 1.2rem;
+  border: none;
+  background: #111827;
+  color: #f3f4f6;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  outline: none;
+}
+
+input {
+  border: 1px solid #2d3748;
+}
+
+input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
+  background: #0f172a;
+}
+
+select {
+  cursor: pointer;
+  background: #111827;
+  border: 1px solid #2d3748;
+}
+
+button {
+  background: linear-gradient(105deg, #4f46e5 0%, #7c3aed 100%);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  border: none;
+  margin-top: 0.5rem;
+}
+
+button:hover {
+  transform: scale(0.98);
+  background: linear-gradient(105deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+}
+
+#nameError {
+  font-size: 0.8rem;
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+  color: #f87171;
+}
+
+#errorMsg {
+  margin-top: 1rem;
+  font-size: 0.85rem;
   text-align: center;
-  padding: 20px;
-  margin-bottom: 10px;
+  color: #f87171;
 }
-#joinRoomBtn {
-  color: royalblue;
-  border: 1px solid royalblue;
+
+#foot {
+  margin-top: 3.5rem;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  letter-spacing: 0.3px;
 }
-#joinRoomBtn:hover {
-  text-shadow: 1px 1px 5px royalblue;
-  box-shadow: 0px 0px 5px royalblue;
+
+@media (max-width: 750px) {
+  body { padding: 1rem; }
+  h1 { font-size: 2rem; }
+  .box_1, .box_2 { padding: 1.5rem; }
 }
