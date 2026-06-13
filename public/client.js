@@ -1,4 +1,3 @@
-// client.js – исправлена синхронизация (двойной вызов requestRoomSync убран)
 const socket = io();
 
 let currentRoomCode = null;
@@ -35,10 +34,10 @@ if (document.getElementById('createRoomBtn')) {
     const val = nameInput.value;
     if (val && !isValidName(val)) {
       nameError.style.display = 'block';
-      nameInput.style.borderColor = '#e74c3c';
+      nameInput.style.outlineColor = '#e74c3c';
     } else {
       nameError.style.display = 'none';
-      nameInput.style.borderColor = '#555';
+      nameInput.style.outlineColor = 'white';
     }
   });
 
@@ -46,7 +45,7 @@ if (document.getElementById('createRoomBtn')) {
     const name = nameInput.value.trim();
     if (!isValidName(name)) {
       nameError.style.display = 'block';
-      nameInput.style.borderColor = '#e74c3c';
+      nameInput.style.outlineColor = '#e74c3c';
       nameInput.focus();
       return;
     }
@@ -72,7 +71,7 @@ if (document.getElementById('createRoomBtn')) {
     }
     if (!isValidName(name)) {
       nameError.style.display = 'block';
-      nameInput.style.borderColor = '#e74c3c';
+      nameInput.style.outlineColor = '#e74c3c';
       nameInput.focus();
       return;
     }
@@ -99,7 +98,6 @@ if (document.getElementById('codeEditor')) {
   if (roomCode) {
     currentRoomCode = roomCode;
 
-    // Показываем код комнаты
     const roomCodeSpan = document.getElementById('roomCodeValue');
     if (roomCodeSpan) {
       roomCodeSpan.textContent = roomCode;
@@ -154,19 +152,15 @@ if (document.getElementById('codeEditor')) {
 
     function applyRoomState(state) {
       if (!state) return;
-
       const opponent = mySocketId
         ? state.players.find(player => player.id !== mySocketId)
         : null;
-
       opponentNameSpan.textContent = opponent
         ? opponent.name
         : (state.players.length > 1 ? 'Противник' : 'Ожидание...');
-
       if (state.started && !state.finished && state.players.length === 2) {
         startGame();
       }
-
       if (state.finished) {
         gameActive = false;
         submitBtn.disabled = true;
@@ -177,7 +171,6 @@ if (document.getElementById('codeEditor')) {
     function requestRoomSync() {
       if (roomSyncRequested) return;
       roomSyncRequested = true;
-
       socket.emit('syncRoom', { code: currentRoomCode, name: myName, token: playerToken }, (res) => {
         if (res && res.success) {
           currentRoomCode = res.roomCode || currentRoomCode;
@@ -189,10 +182,6 @@ if (document.getElementById('codeEditor')) {
         roomSyncRequested = false;
       });
     }
-
-    // Убираем двойной вызов: полагаемся только на socket.on('connect')
-    // Если сокет уже подключён, вызов произойдёт в обработчике выше (socket.on('connect'))
-    // Иначе ждём подключения.
 
     socket.on('roomState', (state) => {
       if (state.roomCode !== currentRoomCode) return;
@@ -210,14 +199,11 @@ if (document.getElementById('codeEditor')) {
       if (!res.success) {
         showNotification(res.message);
         submitBtn.disabled = false;
-      } else {
-        // успех – игра завершится через gameOver
       }
     });
 
     socket.on('gameOver', (data) => {
       if (data.roomCode && data.roomCode !== currentRoomCode) return;
-
       gameActive = false;
       overlay.style.display = 'flex';
       const isWinner = data.winner === mySocketId;
@@ -238,7 +224,6 @@ if (document.getElementById('codeEditor')) {
       if (!gameActive) return;
       submitBtn.disabled = true;
       submitBtn.textContent = 'Проверка...';
-
       try {
         const similarity = await comparePreviews();
         socket.emit('submit', { roomCode: currentRoomCode, similarity: Math.round(similarity) });
@@ -277,51 +262,32 @@ if (document.getElementById('codeEditor')) {
     async function comparePreviews() {
       const taskFrameEl = document.getElementById('taskFrame');
       const previewFrameEl = document.getElementById('previewFrame');
-
       await new Promise(resolve => setTimeout(resolve, 100));
-
-      if (!window.html2canvas) {
-        throw new Error('html2canvas is not loaded');
-      }
-
+      if (!window.html2canvas) throw new Error('html2canvas not loaded');
       const [taskCanvas, previewCanvas] = await Promise.all([
         html2canvas(taskFrameEl.contentDocument ? taskFrameEl.contentDocument.body : taskFrameEl, {
-          useCORS: true,
-          scale: 1,
-          backgroundColor: '#ffffff'
+          useCORS: true, scale: 1, backgroundColor: '#ffffff'
         }),
         html2canvas(previewFrameEl.contentDocument ? previewFrameEl.contentDocument.body : previewFrameEl, {
-          useCORS: true,
-          scale: 1,
-          backgroundColor: '#ffffff'
+          useCORS: true, scale: 1, backgroundColor: '#ffffff'
         })
       ]);
-
       const width = Math.min(taskCanvas.width, previewCanvas.width);
       const height = Math.min(taskCanvas.height, previewCanvas.height);
-
-      if (width <= 0 || height <= 0) {
-        throw new Error('empty preview');
-      }
-
+      if (width <= 0 || height <= 0) throw new Error('empty preview');
       const taskCtx = taskCanvas.getContext('2d');
       const previewCtx = previewCanvas.getContext('2d');
       const taskData = taskCtx.getImageData(0, 0, width, height).data;
       const previewData = previewCtx.getImageData(0, 0, width, height).data;
-
       let matched = 0;
       const totalPixels = width * height;
       const threshold = 35;
-
       for (let i = 0; i < taskData.length; i += 4) {
         const dr = Math.abs(taskData[i] - previewData[i]);
-        const dg = Math.abs(taskData[i + 1] - previewData[i + 1]);
-        const db = Math.abs(taskData[i + 2] - previewData[i + 2]);
-        if (dr + dg + db < threshold * 3) {
-          matched++;
-        }
+        const dg = Math.abs(taskData[i+1] - previewData[i+1]);
+        const db = Math.abs(taskData[i+2] - previewData[i+2]);
+        if (dr + dg + db < threshold * 3) matched++;
       }
-
       return (matched / totalPixels) * 100;
     }
 

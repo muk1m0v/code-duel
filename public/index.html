@@ -1,4 +1,3 @@
-<!-- index.html – без изменений, но ссылается на style.css -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,16 +6,22 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <h1>HTML / CSS Battle</h1>
   <div class="menu">
-    <h1>Code Duel</h1>
-    <input type="text" id="playerName" placeholder="Ваше имя" maxlength="15" autocomplete="off" />
-    <p id="nameError" style="color:#e74c3c; display:none; font-size:14px;">Имя должно содержать буквы, цифры, пробел, _ или -</p>
-    <button id="createRoomBtn">Создать комнату</button>
-    <hr>
-    <input type="text" id="joinCodeInput" placeholder="Введите код комнаты" maxlength="5" autocomplete="off" />
-    <button id="joinRoomBtn">Присоединиться</button>
-    <p id="errorMsg" style="color:#e74c3c;"></p>
+    <div class="box_1">
+      <h3>Создать Комнату</h3>
+      <input type="text" id="playerName" placeholder="Ваше имя" maxlength="15" autocomplete="off" />
+      <p id="nameError" style="color:#e74c3c; display:none; font-size:14px;">Имя должно содержать буквы, цифры, пробел, _ или -</p>
+      <button id="createRoomBtn">Создать комнату</button>
+    </div>
+    <div class="box_2">
+      <h3>Присоединиться</h3>
+      <input type="text" id="joinCodeInput" placeholder="Введите код комнаты" maxlength="5" autocomplete="off" />
+      <button id="joinRoomBtn">Присоединиться</button>
+      <p id="errorMsg" style="color:#e74c3c;"></p>
+    </div>
   </div>
+  <p id="foot">Power by mukimov</p>
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
 </body>

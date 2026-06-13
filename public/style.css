@@ -4,76 +4,90 @@
   padding: 0;
   box-sizing: border-box;
 }
-
+::selection {
+  color: royalblue;
+  background: none;
+}
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
   background: #0f0f1a;
   color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 100vh;
   overflow: hidden;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-
-.menu {
+#foot {
   text-align: center;
-  background: #1a1a2e;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 0 30px rgba(199, 125, 255, 0.3);
+  color: #1d1d36;
+  padding: 10px;
+  font-size: 12px;
+  margin-top: 20px;
 }
-
-.menu h1 {
-  font-size: 3rem;
-  margin-bottom: 20px;
-  color: #c77dff;
-  text-shadow: 0 0 10px #c77dff;
+.menu {
+  width: 80%;
+  margin: 0 auto;
+  background-color: #1a1a2c;
+  padding: 10px;
+  height: 80vh;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
 }
-
+.box_1, .box_2 {
+  border-radius: 10px;
+  width: 38%;
+  background-color: #0f0f1a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 200px;
+  margin-top: 0;
+}
+h3 {
+  padding: 15px;
+}
 input {
-  padding: 12px 20px;
-  margin: 10px;
-  font-size: 16px;
-  border: 2px solid #c77dff;
-  background: #0f0f1a;
-  color: #fff;
-  border-radius: 6px;
-  outline: none;
-  width: 250px;
-}
-
-input:focus {
-  box-shadow: 0 0 10px #c77dff;
-}
-
-button {
-  padding: 12px 30px;
-  margin: 10px;
-  font-size: 16px;
-  background: #c77dff;
-  color: #0f0f1a;
+  background: none;
+  border-radius: 10px;
   border: none;
-  border-radius: 6px;
+  width: 80%;
+  padding: 15px;
+  font-size: 18px;
+  color: white;
+  margin-bottom: 10px;
+  outline: 1px solid white;
+}
+button {
+  background: none;
+  color: yellow;
+  border: 1px solid yellow;
+  border-radius: 10px;
+  width: 40%;
+  margin-top: 15px;
+  padding: 15px 20px;
   cursor: pointer;
-  font-weight: bold;
-  transition: background 0.3s, box-shadow 0.3s;
 }
-
 button:hover {
-  background: #b060e0;
-  box-shadow: 0 0 15px #c77dff;
+  box-shadow: 0px 0px 5px orange;
+  text-shadow: 1px 1px 5px orange;
+  transform: scale(1.02);
+  transition: all 0.3s;
 }
-
-@media (max-width: 768px) {
-  .menu {
-    padding: 20px;
-    width: 90%;
-  }
-  .menu h1 {
-    font-size: 2rem;
-  }
-  input, button {
-    width: 80%;
-  }
+h1 {
+  text-align: center;
+  padding: 20px;
+  margin-bottom: 10px;
+}
+#joinRoomBtn {
+  color: royalblue;
+  border: 1px solid royalblue;
+}
+#joinRoomBtn:hover {
+  text-shadow: 1px 1px 5px royalblue;
+  box-shadow: 0px 0px 5px royalblue;
 }

@@ -1,4 +1,3 @@
-// server.js – добавлена более агрессивная чистка мёртвых игроков
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -12,7 +11,6 @@ const io = new Server(server, {
 });
 
 app.set('trust proxy', 1);
-
 app.use(express.static('public'));
 app.use('/tasks', express.static('tasks'));
 
@@ -34,7 +32,7 @@ function cleanToken(token) {
 function buildRoomState(room) {
   return {
     roomCode: room.code,
-    players: room.players.map(player => ({ id: player.id, name: player.name })),
+    players: room.players.map(p => ({ id: p.id, name: p.name })),
     started: room.started,
     finished: room.finished,
     winner: room.winner || null,
@@ -47,81 +45,63 @@ function emitRoomState(room) {
 }
 
 function pruneDeadPlayers(room) {
-  const activePlayers = room.players.filter(p => {
+  const active = room.players.filter(p => {
     const sock = io.sockets.sockets.get(p.id);
     return sock && sock.connected;
   });
-  if (activePlayers.length !== room.players.length) {
-    console.log(`[${room.code}] Удалены мёртвые игроки: было ${room.players.length}, стало ${activePlayers.length}`);
-    room.players = activePlayers;
+  if (active.length !== room.players.length) {
+    room.players = active;
     return true;
   }
   return false;
 }
 
 function removeSocketFromRoom(socketId, room, notify) {
-  const oldSocket = io.sockets.sockets.get(socketId);
-  if (oldSocket) {
-    oldSocket.leave(room.code);
+  const old = io.sockets.sockets.get(socketId);
+  if (old) {
+    old.leave(room.code);
     socketToRoom.delete(socketId);
   }
-
-  const playerIndex = room.players.findIndex(player => player.id === socketId);
-  if (playerIndex !== -1) {
-    room.players.splice(playerIndex, 1);
-  }
-
+  const idx = room.players.findIndex(p => p.id === socketId);
+  if (idx !== -1) room.players.splice(idx, 1);
   if (room.players.length === 0) {
     delete rooms[room.code];
-    console.log(`[${room.code}] Комната удалена (пуста)`);
     return;
   }
-
-  if (notify && room.started && !room.finished) {
-    io.to(room.code).emit('playerLeft');
-  }
-
+  if (notify && room.started && !room.finished) io.to(room.code).emit('playerLeft');
   emitRoomState(room);
 }
 
 function detachSocket(socket, notify = true) {
-  const roomCode = socketToRoom.get(socket.id);
-  if (!roomCode) return;
-
-  const room = rooms[roomCode];
+  const code = socketToRoom.get(socket.id);
+  if (!code) return;
+  const room = rooms[code];
   if (!room) {
     socketToRoom.delete(socket.id);
     return;
   }
-
   removeSocketFromRoom(socket.id, room, notify);
 }
 
 function startGame(room) {
   if (room.started || room.finished || room.players.length !== 2) return;
-
   room.started = true;
   io.to(room.code).emit('gameStart', {
     roomCode: room.code,
     task: 'task1',
-    players: room.players.map(player => ({ id: player.id, name: player.name }))
+    players: room.players.map(p => ({ id: p.id, name: p.name }))
   });
   emitRoomState(room);
-  console.log(`[${room.code}] Игра началась между ${room.players.map(p => p.name).join(' и ')}`);
 }
 
-function replacePlayerSocket(room, oldPlayerId, newSocket) {
-  const oldSocket = io.sockets.sockets.get(oldPlayerId);
-  if (oldSocket) {
-    oldSocket.leave(room.code);
-    socketToRoom.delete(oldPlayerId);
+function replacePlayerSocket(room, oldId, newSocket) {
+  const old = io.sockets.sockets.get(oldId);
+  if (old) {
+    old.leave(room.code);
+    socketToRoom.delete(oldId);
   }
-
-  const player = room.players.find(item => item.id === oldPlayerId);
-  if (player) {
-    player.id = newSocket.id;
-  }
-
+  const player = room.players.find(p => p.id === oldId);
+  if (player) player.id = newSocket.id;
   newSocket.join(room.code);
   socketToRoom.set(newSocket.id, room.code);
 }
@@ -129,163 +109,113 @@ function replacePlayerSocket(room, oldPlayerId, newSocket) {
 function joinWaitingRoom(socket, code, name, token, callback) {
   const room = rooms[code];
   if (!room) return callback({ success: false, message: 'Комната не найдена' });
-  
-  // Жёсткая чистка перед проверкой
   pruneDeadPlayers(room);
   if (room.players.length === 0) {
     delete rooms[code];
     return callback({ success: false, message: 'Комната не найдена' });
   }
-  
   if (room.started) return callback({ success: false, message: 'Игра уже идёт' });
   if (room.finished) return callback({ success: false, message: 'Игра завершена' });
-
   detachSocket(socket, true);
-
-  // игрок уже есть по сокету
-  if (room.players.some(player => player.id === socket.id)) {
-    const player = room.players.find(item => item.id === socket.id);
-    player.name = cleanName(name);
-    if (token) player.token = token;
+  if (room.players.some(p => p.id === socket.id)) {
+    const p = room.players.find(p => p.id === socket.id);
+    p.name = cleanName(name);
+    if (token) p.token = token;
     socket.join(code);
     socketToRoom.set(socket.id, code);
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
   }
-
-  // повторное подключение по токену
-  const samePlayerIndex = token
-    ? room.players.findIndex(player => player.token === token)
-    : -1;
-
-  if (samePlayerIndex !== -1) {
-    replacePlayerSocket(room, room.players[samePlayerIndex].id, socket);
-    room.players[samePlayerIndex].name = cleanName(name);
+  const sameIdx = token ? room.players.findIndex(p => p.token === token) : -1;
+  if (sameIdx !== -1) {
+    replacePlayerSocket(room, room.players[sameIdx].id, socket);
+    room.players[sameIdx].name = cleanName(name);
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
   }
-
   if (room.players.length >= 2) {
     return callback({ success: false, message: 'Комната заполнена' });
   }
-
   room.players.push({ id: socket.id, name: cleanName(name), token });
   socket.join(code);
   socketToRoom.set(socket.id, code);
-
   callback({ success: true, roomCode: code, state: buildRoomState(room) });
-  console.log(`[${room.code}] Игрок ${name} присоединился. Всего: ${room.players.length}`);
-
-  if (room.players.length === 2) {
-    startGame(room);
-  } else {
-    emitRoomState(room);
-  }
+  if (room.players.length === 2) startGame(room);
+  else emitRoomState(room);
 }
 
 function syncRoom(socket, code, name, token, callback) {
   const room = rooms[code];
   if (!room) return callback({ success: false, message: 'Комната не найдена' });
-
   pruneDeadPlayers(room);
   if (room.players.length === 0) {
     delete rooms[code];
     return callback({ success: false, message: 'Комната не найдена' });
   }
-
-  const cleanPlayerName = cleanName(name);
-  const cleanPlayerToken = cleanToken(token);
-  const currentRoomCode = socketToRoom.get(socket.id);
-
-  if (currentRoomCode && currentRoomCode !== code) {
-    detachSocket(socket, true);
-  }
-
+  const cleanNameVal = cleanName(name);
+  const cleanTokenVal = cleanToken(token);
+  const curCode = socketToRoom.get(socket.id);
+  if (curCode && curCode !== code) detachSocket(socket, true);
   if (room.started || room.finished) {
-    const existingIndex = room.players.findIndex(player => player.id === socket.id);
-    if (existingIndex !== -1) {
-      room.players[existingIndex].name = cleanPlayerName;
-      if (cleanPlayerToken) room.players[existingIndex].token = cleanPlayerToken;
+    const exist = room.players.findIndex(p => p.id === socket.id);
+    if (exist !== -1) {
+      room.players[exist].name = cleanNameVal;
+      if (cleanTokenVal) room.players[exist].token = cleanTokenVal;
       socket.join(code);
       socketToRoom.set(socket.id, code);
       callback({ success: true, roomCode: code, state: buildRoomState(room) });
       return;
     }
-
-    const samePlayerIndex = cleanPlayerToken
-      ? room.players.findIndex(player => player.token === cleanPlayerToken)
-      : -1;
-
-    if (samePlayerIndex !== -1) {
-      replacePlayerSocket(room, room.players[samePlayerIndex].id, socket);
-      room.players[samePlayerIndex].name = cleanPlayerName;
+    const same = cleanTokenVal ? room.players.findIndex(p => p.token === cleanTokenVal) : -1;
+    if (same !== -1) {
+      replacePlayerSocket(room, room.players[same].id, socket);
+      room.players[same].name = cleanNameVal;
       callback({ success: true, roomCode: code, state: buildRoomState(room) });
       emitRoomState(room);
       return;
     }
-
-    return callback({
-      success: false,
-      message: room.finished ? 'Игра завершена' : 'Игра уже идёт'
-    });
+    return callback({ success: false, message: room.finished ? 'Игра завершена' : 'Игра уже идёт' });
   }
-
-  if (room.players.some(player => player.id === socket.id)) {
-    const player = room.players.find(item => item.id === socket.id);
-    player.name = cleanPlayerName;
-    if (cleanPlayerToken) player.token = cleanPlayerToken;
+  if (room.players.some(p => p.id === socket.id)) {
+    const p = room.players.find(p => p.id === socket.id);
+    p.name = cleanNameVal;
+    if (cleanTokenVal) p.token = cleanTokenVal;
     socket.join(code);
     socketToRoom.set(socket.id, code);
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
   }
-
-  const samePlayerIndex = cleanPlayerToken
-    ? room.players.findIndex(player => player.token === cleanPlayerToken)
-    : -1;
-
-  if (samePlayerIndex !== -1) {
-    replacePlayerSocket(room, room.players[samePlayerIndex].id, socket);
-    room.players[samePlayerIndex].name = cleanPlayerName;
+  const sameIdx = cleanTokenVal ? room.players.findIndex(p => p.token === cleanTokenVal) : -1;
+  if (sameIdx !== -1) {
+    replacePlayerSocket(room, room.players[sameIdx].id, socket);
+    room.players[sameIdx].name = cleanNameVal;
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
   }
-
   if (room.players.length >= 2) {
     return callback({ success: false, message: 'Комната заполнена' });
   }
-
-  room.players.push({ id: socket.id, name: cleanPlayerName, token: cleanPlayerToken });
+  room.players.push({ id: socket.id, name: cleanNameVal, token: cleanTokenVal });
   socket.join(code);
   socketToRoom.set(socket.id, code);
-
   callback({ success: true, roomCode: code, state: buildRoomState(room) });
-
-  if (room.players.length === 2) {
-    startGame(room);
-  } else {
-    emitRoomState(room);
-  }
+  if (room.players.length === 2) startGame(room);
+  else emitRoomState(room);
 }
 
 function generateRoomCode() {
   let code;
-  do {
-    code = Math.floor(10000 + Math.random() * 90000).toString();
-  } while (rooms[code]);
+  do { code = Math.floor(10000 + Math.random() * 90000).toString(); } while (rooms[code]);
   return code;
 }
 
 io.on('connection', (socket) => {
-  console.log(`Подключился: ${socket.id}`);
-
-  socket.on('createRoom', ({ name, token }, callback) => {
+  socket.on('createRoom', ({ name, token }, cb) => {
     detachSocket(socket, true);
-
     const code = generateRoomCode();
     rooms[code] = {
       code,
@@ -294,51 +224,34 @@ io.on('connection', (socket) => {
       finished: false,
       createdAt: Date.now()
     };
-
     socket.join(code);
     socketToRoom.set(socket.id, code);
-
-    console.log(`[${code}] Создана комната, игрок: ${name}`);
-    callback({ success: true, roomCode: code, state: buildRoomState(rooms[code]) });
+    cb({ success: true, roomCode: code, state: buildRoomState(rooms[code]) });
   });
-
-  socket.on('joinRoom', ({ code, name, token }, callback) => {
-    const roomCode = String(code || '').trim();
-    console.log(`joinRoom: ${roomCode}, name: ${name}`);
-    joinWaitingRoom(socket, roomCode, name, token, callback);
+  socket.on('joinRoom', ({ code, name, token }, cb) => {
+    joinWaitingRoom(socket, String(code || '').trim(), name, token, cb);
   });
-
-  socket.on('syncRoom', ({ code, name, token }, callback) => {
-    const roomCode = String(code || '').trim();
-    console.log(`syncRoom: ${roomCode}, name: ${name}`);
-    syncRoom(socket, roomCode, name, token, callback);
+  socket.on('syncRoom', ({ code, name, token }, cb) => {
+    syncRoom(socket, String(code || '').trim(), name, token, cb);
   });
-
-  socket.on('submit', (data) => {
-    const { roomCode, similarity } = data || {};
+  socket.on('submit', ({ roomCode, similarity }) => {
     const room = rooms[roomCode];
     if (!room || !room.started || room.finished || room.players.length < 2) return;
-    if (!room.players.some(player => player.id === socket.id)) return;
-
+    if (!room.players.some(p => p.id === socket.id)) return;
     const score = Number(similarity);
     if (!Number.isFinite(score)) return;
-
-    console.log(`[${roomCode}] Результат от ${socket.id}: ${score}%`);
-
     if (score >= 80) {
       room.finished = true;
       room.winner = socket.id;
-      room.winnerName = room.players.find(player => player.id === socket.id).name;
-
+      room.winnerName = room.players.find(p => p.id === socket.id).name;
       io.to(roomCode).emit('gameOver', {
         roomCode,
         winner: socket.id,
         winnerName: room.winnerName,
-        loserName: room.players.find(player => player.id !== socket.id).name,
+        loserName: room.players.find(p => p.id !== socket.id).name,
         message: `${room.winnerName} выиграл!`
       });
       emitRoomState(room);
-      console.log(`[${roomCode}] Победитель: ${room.winnerName}`);
     } else {
       socket.emit('submitResult', {
         success: false,
@@ -347,20 +260,13 @@ io.on('connection', (socket) => {
       });
     }
   });
-
-  socket.on('disconnect', () => {
-    console.log(`Отключился: ${socket.id}`);
-    detachSocket(socket, true);
-  });
+  socket.on('disconnect', () => detachSocket(socket, true));
 });
 
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of Object.entries(rooms)) {
-    if (!room.started && now - room.createdAt > 30 * 60 * 1000) {
-      delete rooms[code];
-      console.log(`[${code}] Удалена по таймауту`);
-    }
+    if (!room.started && now - room.createdAt > 30 * 60 * 1000) delete rooms[code];
   }
 }, 60 * 1000);
 
