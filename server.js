@@ -2,13 +2,11 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-});
+const io = new Server(server, { cors: { origin: '*', methods: ['GET','POST'] } });
 
 app.set('trust proxy', 1);
 app.use(express.static('public'));
@@ -21,13 +19,44 @@ app.get('/room', (req, res) => {
 const rooms = {};
 const socketToRoom = new Map();
 
-function cleanName(name) {
-  return String(name || '').trim().replace(/\s+/g, ' ').slice(0, 30) || 'Игрок';
+// Рейтинг
+const RATING_FILE = './rating.json';
+let ratings = {};
+function loadRatings() {
+  try {
+    if (fs.existsSync(RATING_FILE)) {
+      ratings = JSON.parse(fs.readFileSync(RATING_FILE, 'utf8'));
+    }
+  } catch(e) { console.error(e); }
+}
+function saveRatings() {
+  fs.writeFileSync(RATING_FILE, JSON.stringify(ratings, null, 2));
+}
+function getRank(score) {
+  if (score >= 3000) return 'Master';
+  if (score >= 2000) return 'Diamond';
+  if (score >= 1500) return 'Platinum';
+  if (score >= 1000) return 'Gold';
+  if (score >= 500) return 'Silver';
+  return 'Bronze';
+}
+function updateRating(winnerId, loserId, winnerToken, loserToken) {
+  const winnerRating = ratings[winnerToken] || { score: 0, name: winnerId };
+  const loserRating = ratings[loserToken] || { score: 0, name: loserId };
+  let winnerGain = 50;
+  let loserGain = 10;
+  winnerRating.score += winnerGain;
+  loserRating.score += loserGain;
+  ratings[winnerToken] = winnerRating;
+  ratings[loserToken] = loserRating;
+  saveRatings();
+  return { winnerGain, loserGain };
 }
 
-function cleanToken(token) {
-  return typeof token === 'string' && token.length > 0 && token.length <= 128 ? token : null;
-}
+loadRatings();
+
+function cleanName(name) { return String(name || '').trim().slice(0,30) || 'Игрок'; }
+function cleanToken(token) { return typeof token === 'string' && token.length && token.length <= 128 ? token : null; }
 
 function buildRoomState(room) {
   return {
@@ -36,59 +65,45 @@ function buildRoomState(room) {
     started: room.started,
     finished: room.finished,
     winner: room.winner || null,
-    winnerName: room.winnerName || null
+    winnerName: room.winnerName || null,
+    timeLimit: room.timeLimit,
+    progress: room.progress || {}
   };
 }
-
-function emitRoomState(room) {
-  io.to(room.code).emit('roomState', buildRoomState(room));
-}
+function emitRoomState(room) { io.to(room.code).emit('roomState', buildRoomState(room)); }
 
 function pruneDeadPlayers(room) {
-  const active = room.players.filter(p => {
-    const sock = io.sockets.sockets.get(p.id);
-    return sock && sock.connected;
-  });
-  if (active.length !== room.players.length) {
-    room.players = active;
-    return true;
-  }
-  return false;
+  const active = room.players.filter(p => io.sockets.sockets.get(p.id)?.connected);
+  if (active.length !== room.players.length) room.players = active;
+  return room.players.length;
 }
 
 function removeSocketFromRoom(socketId, room, notify) {
   const old = io.sockets.sockets.get(socketId);
-  if (old) {
-    old.leave(room.code);
-    socketToRoom.delete(socketId);
-  }
-  const idx = room.players.findIndex(p => p.id === socketId);
-  if (idx !== -1) room.players.splice(idx, 1);
-  if (room.players.length === 0) {
-    delete rooms[room.code];
-    return;
-  }
-  if (notify && room.started && !room.finished) io.to(room.code).emit('playerLeft');
+  if (old) { old.leave(room.code); socketToRoom.delete(socketId); }
+  room.players = room.players.filter(p => p.id !== socketId);
+  if (room.players.length === 0) delete rooms[room.code];
+  else if (notify && room.started && !room.finished) io.to(room.code).emit('playerLeft');
   emitRoomState(room);
 }
 
-function detachSocket(socket, notify = true) {
+function detachSocket(socket, notify) {
   const code = socketToRoom.get(socket.id);
   if (!code) return;
   const room = rooms[code];
-  if (!room) {
-    socketToRoom.delete(socket.id);
-    return;
-  }
-  removeSocketFromRoom(socket.id, room, notify);
+  if (room) removeSocketFromRoom(socket.id, room, notify);
+  else socketToRoom.delete(socket.id);
 }
 
 function startGame(room) {
   if (room.started || room.finished || room.players.length !== 2) return;
   room.started = true;
+  room.startTime = Date.now();
+  room.progress = {};
   io.to(room.code).emit('gameStart', {
     roomCode: room.code,
     task: 'task1',
+    timeLimit: room.timeLimit,
     players: room.players.map(p => ({ id: p.id, name: p.name }))
   });
   emitRoomState(room);
@@ -96,24 +111,18 @@ function startGame(room) {
 
 function replacePlayerSocket(room, oldId, newSocket) {
   const old = io.sockets.sockets.get(oldId);
-  if (old) {
-    old.leave(room.code);
-    socketToRoom.delete(oldId);
-  }
-  const player = room.players.find(p => p.id === oldId);
-  if (player) player.id = newSocket.id;
+  if (old) { old.leave(room.code); socketToRoom.delete(oldId); }
+  const p = room.players.find(p => p.id === oldId);
+  if (p) p.id = newSocket.id;
   newSocket.join(room.code);
   socketToRoom.set(newSocket.id, room.code);
 }
 
 function joinWaitingRoom(socket, code, name, token, callback) {
-  const room = rooms[code];
+  let room = rooms[code];
   if (!room) return callback({ success: false, message: 'Комната не найдена' });
   pruneDeadPlayers(room);
-  if (room.players.length === 0) {
-    delete rooms[code];
-    return callback({ success: false, message: 'Комната не найдена' });
-  }
+  if (room.players.length === 0) { delete rooms[code]; return callback({ success: false, message: 'Комната удалена' }); }
   if (room.started) return callback({ success: false, message: 'Игра уже идёт' });
   if (room.finished) return callback({ success: false, message: 'Игра завершена' });
   detachSocket(socket, true);
@@ -121,8 +130,7 @@ function joinWaitingRoom(socket, code, name, token, callback) {
     const p = room.players.find(p => p.id === socket.id);
     p.name = cleanName(name);
     if (token) p.token = token;
-    socket.join(code);
-    socketToRoom.set(socket.id, code);
+    socket.join(code); socketToRoom.set(socket.id, code);
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
@@ -135,25 +143,19 @@ function joinWaitingRoom(socket, code, name, token, callback) {
     emitRoomState(room);
     return;
   }
-  if (room.players.length >= 2) {
-    return callback({ success: false, message: 'Комната заполнена' });
-  }
+  if (room.players.length >= 2) return callback({ success: false, message: 'Комната заполнена' });
   room.players.push({ id: socket.id, name: cleanName(name), token });
-  socket.join(code);
-  socketToRoom.set(socket.id, code);
+  socket.join(code); socketToRoom.set(socket.id, code);
   callback({ success: true, roomCode: code, state: buildRoomState(room) });
   if (room.players.length === 2) startGame(room);
   else emitRoomState(room);
 }
 
 function syncRoom(socket, code, name, token, callback) {
-  const room = rooms[code];
+  let room = rooms[code];
   if (!room) return callback({ success: false, message: 'Комната не найдена' });
   pruneDeadPlayers(room);
-  if (room.players.length === 0) {
-    delete rooms[code];
-    return callback({ success: false, message: 'Комната не найдена' });
-  }
+  if (room.players.length === 0) { delete rooms[code]; return callback({ success: false, message: 'Комната не найдена' }); }
   const cleanNameVal = cleanName(name);
   const cleanTokenVal = cleanToken(token);
   const curCode = socketToRoom.get(socket.id);
@@ -163,18 +165,14 @@ function syncRoom(socket, code, name, token, callback) {
     if (exist !== -1) {
       room.players[exist].name = cleanNameVal;
       if (cleanTokenVal) room.players[exist].token = cleanTokenVal;
-      socket.join(code);
-      socketToRoom.set(socket.id, code);
-      callback({ success: true, roomCode: code, state: buildRoomState(room) });
-      return;
+      socket.join(code); socketToRoom.set(socket.id, code);
+      return callback({ success: true, roomCode: code, state: buildRoomState(room) });
     }
     const same = cleanTokenVal ? room.players.findIndex(p => p.token === cleanTokenVal) : -1;
     if (same !== -1) {
       replacePlayerSocket(room, room.players[same].id, socket);
       room.players[same].name = cleanNameVal;
-      callback({ success: true, roomCode: code, state: buildRoomState(room) });
-      emitRoomState(room);
-      return;
+      return callback({ success: true, roomCode: code, state: buildRoomState(room) });
     }
     return callback({ success: false, message: room.finished ? 'Игра завершена' : 'Игра уже идёт' });
   }
@@ -182,8 +180,7 @@ function syncRoom(socket, code, name, token, callback) {
     const p = room.players.find(p => p.id === socket.id);
     p.name = cleanNameVal;
     if (cleanTokenVal) p.token = cleanTokenVal;
-    socket.join(code);
-    socketToRoom.set(socket.id, code);
+    socket.join(code); socketToRoom.set(socket.id, code);
     callback({ success: true, roomCode: code, state: buildRoomState(room) });
     emitRoomState(room);
     return;
@@ -196,68 +193,60 @@ function syncRoom(socket, code, name, token, callback) {
     emitRoomState(room);
     return;
   }
-  if (room.players.length >= 2) {
-    return callback({ success: false, message: 'Комната заполнена' });
-  }
+  if (room.players.length >= 2) return callback({ success: false, message: 'Комната заполнена' });
   room.players.push({ id: socket.id, name: cleanNameVal, token: cleanTokenVal });
-  socket.join(code);
-  socketToRoom.set(socket.id, code);
+  socket.join(code); socketToRoom.set(socket.id, code);
   callback({ success: true, roomCode: code, state: buildRoomState(room) });
   if (room.players.length === 2) startGame(room);
   else emitRoomState(room);
 }
 
-function generateRoomCode() {
-  let code;
-  do { code = Math.floor(10000 + Math.random() * 90000).toString(); } while (rooms[code]);
-  return code;
-}
+function generateRoomCode() { let c; do { c = Math.floor(10000+Math.random()*90000).toString(); } while(rooms[c]); return c; }
 
 io.on('connection', (socket) => {
-  socket.on('createRoom', ({ name, token }, cb) => {
+  socket.on('createRoom', ({ name, token, timeLimit }, cb) => {
     detachSocket(socket, true);
     const code = generateRoomCode();
     rooms[code] = {
       code,
       players: [{ id: socket.id, name: cleanName(name), token: cleanToken(token) }],
-      started: false,
-      finished: false,
-      createdAt: Date.now()
+      started: false, finished: false, createdAt: Date.now(),
+      timeLimit: timeLimit || 600, progress: {}
     };
-    socket.join(code);
-    socketToRoom.set(socket.id, code);
+    socket.join(code); socketToRoom.set(socket.id, code);
     cb({ success: true, roomCode: code, state: buildRoomState(rooms[code]) });
   });
-  socket.on('joinRoom', ({ code, name, token }, cb) => {
-    joinWaitingRoom(socket, String(code || '').trim(), name, token, cb);
-  });
-  socket.on('syncRoom', ({ code, name, token }, cb) => {
-    syncRoom(socket, String(code || '').trim(), name, token, cb);
+  socket.on('joinRoom', ({ code, name, token }, cb) => joinWaitingRoom(socket, String(code).trim(), name, token, cb));
+  socket.on('syncRoom', ({ code, name, token }, cb) => syncRoom(socket, String(code).trim(), name, token, cb));
+  socket.on('chatMessage', ({ roomCode, text }) => {
+    const room = rooms[roomCode];
+    if (!room) return;
+    const sender = room.players.find(p => p.id === socket.id)?.name || 'Аноним';
+    io.to(roomCode).emit('chatMessage', { sender, text });
   });
   socket.on('submit', ({ roomCode, similarity }) => {
+    io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress, players: room.players });
     const room = rooms[roomCode];
-    if (!room || !room.started || room.finished || room.players.length < 2) return;
-    if (!room.players.some(p => p.id === socket.id)) return;
+    if (!room || !room.started || room.finished || room.players.length !== 2) return;
+    const player = room.players.find(p => p.id === socket.id);
+    if (!player) return;
     const score = Number(similarity);
-    if (!Number.isFinite(score)) return;
+    if (isNaN(score)) return;
+    room.progress[player.id] = Math.min(100, Math.max(0, score));
+    io.to(roomCode).emit('progressUpdate', { roomCode, progress: room.progress });
     if (score >= 80) {
       room.finished = true;
       room.winner = socket.id;
-      room.winnerName = room.players.find(p => p.id === socket.id).name;
+      room.winnerName = player.name;
+      const loser = room.players.find(p => p.id !== socket.id);
+      const { winnerGain, loserGain } = updateRating(player.name, loser.name, player.token, loser.token);
       io.to(roomCode).emit('gameOver', {
-        roomCode,
-        winner: socket.id,
-        winnerName: room.winnerName,
-        loserName: room.players.find(p => p.id !== socket.id).name,
-        message: `${room.winnerName} выиграл!`
+        roomCode, winner: socket.id, winnerName: player.name,
+        loserName: loser.name, ratingGain: winnerGain, message: `${player.name} выиграл!`
       });
       emitRoomState(room);
     } else {
-      socket.emit('submitResult', {
-        success: false,
-        similarity: Math.round(score),
-        message: `Схожесть ${Math.round(score)}%. Нужно не менее 80%. Попробуйте ещё.`
-      });
+      socket.emit('submitResult', { success: false, similarity: Math.round(score), message: `Схожесть ${Math.round(score)}% (нужно >=80%)` });
     }
   });
   socket.on('disconnect', () => detachSocket(socket, true));
@@ -266,9 +255,9 @@ io.on('connection', (socket) => {
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of Object.entries(rooms)) {
-    if (!room.started && now - room.createdAt > 30 * 60 * 1000) delete rooms[code];
+    if (!room.started && now - room.createdAt > 30*60*1000) delete rooms[code];
   }
-}, 60 * 1000);
+}, 60000);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
+server.listen(PORT, () => console.log(`Сервер на ${PORT}`));

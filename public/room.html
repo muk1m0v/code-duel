@@ -10,29 +10,66 @@
   <div id="topBar">
     <div id="playersInfo">
       <span id="myName"></span> vs <span id="opponentName">Ожидание...</span>
+      <span id="timerDisplay">00:00</span>
     </div>
     <div id="roomCodeDisplay">
       Код комнаты: <strong id="roomCodeValue"></strong>
     </div>
+    <button id="chatBtn">Чат</button>
     <button id="submitBtn">Готово</button>
   </div>
   <div id="mainArea">
     <div id="leftPanel">
+      <div class="editor-tabs">
+        <button class="editor-tab active" data-lang="html">HTML</button>
+        <button class="editor-tab" data-lang="css">CSS</button>
+      </div>
       <div class="editor-container">
         <textarea id="codeEditor" placeholder="Введите HTML/CSS код..."></textarea>
       </div>
       <div class="preview-container">
+        <div class="preview-tabs">
+          <button class="preview-tab active" data-preview="task">Задание</button>
+          <button class="preview-tab" data-preview="my">Моё решение</button>
+        </div>
         <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>
       </div>
     </div>
     <div id="rightPanel">
-      <h3>Задание</h3>
-      <iframe id="taskFrame" src="/tasks/task1.html" sandbox="allow-same-origin"></iframe>
+      <div id="progressContainer">
+        <div class="progress-item">
+          <span id="myProgressLabel">Я: 0%</span>
+          <div class="progress-bar"><div id="myProgressFill" class="progress-fill"></div></div>
+        </div>
+        <div class="progress-item">
+          <span id="opponentProgressLabel">Противник: 0%</span>
+          <div class="progress-bar"><div id="opponentProgressFill" class="progress-fill"></div></div>
+        </div>
+      </div>
+      <h3>Задание / Моё решение</h3>
+      <iframe id="taskFrame" src="/tasks/task1_desc.html" sandbox="allow-same-origin"></iframe>
     </div>
   </div>
+  <!-- Скрытый iframe с эталоном для сравнения -->
+  <iframe id="targetFrame" src="/tasks/task1.html" style="display:none;"></iframe>
+
   <div id="overlay" style="display:none;">
     <div id="overlayMsg"></div>
     <button id="okBtn">OK</button>
+  </div>
+  <!-- Модальное окно чата -->
+  <div id="chatModal" style="display:none;">
+    <div class="chat-container">
+      <div class="chat-header">
+        <span>Чат комнаты</span>
+        <button id="closeChatBtn">✖</button>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Введите сообщение..." />
+        <button id="sendChatBtn">Отправить</button>
+      </div>
+    </div>
   </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>

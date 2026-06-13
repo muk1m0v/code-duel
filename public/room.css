@@ -26,28 +26,61 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 20px;
+  padding: 8px 20px;
   border-bottom: 2px solid #c77dff;
   z-index: 10;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 #playersInfo {
+  display: flex;
+  gap: 15px;
+  font-size: 1rem;
+}
+
+#timerDisplay {
+  font-family: monospace;
   font-size: 1.2rem;
+  color: #ffcc00;
+  background: #2a2a3e;
+  padding: 2px 8px;
+  border-radius: 8px;
 }
 
 #roomCodeDisplay {
-  font-size: 1rem;
+  font-size: 0.9rem;
   background: #2a2a3e;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 20px;
   border: 1px solid #c77dff;
+}
+
+#chatBtn, #submitBtn {
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  background: #c77dff;
+  color: #0f0f1a;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
+#chatBtn {
+  background: #3a3a5e;
+  color: white;
+}
+
+#submitBtn:hover, #chatBtn:hover {
+  background: #b060e0;
 }
 
 #mainArea {
   display: flex;
   width: 100%;
   height: 100%;
-  padding-top: 60px;
+  padding-top: 56px;
 }
 
 #leftPanel {
@@ -55,10 +88,33 @@ body {
   display: flex;
   flex-direction: column;
   background: #12121f;
+  overflow: hidden;
+}
+
+.editor-tabs, .preview-tabs {
+  display: flex;
+  background: #1e1e2e;
+  border-bottom: 1px solid #c77dff;
+}
+
+.editor-tab, .preview-tab {
+  background: none;
+  border: none;
+  color: #aaa;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.editor-tab.active, .preview-tab.active {
+  color: #c77dff;
+  border-bottom: 2px solid #c77dff;
 }
 
 .editor-container {
   flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
 #codeEditor {
@@ -69,51 +125,63 @@ body {
   border: none;
   resize: none;
   font-family: 'Consolas', monospace;
-  font-size: 14px;
-  padding: 15px;
+  font-size: 13px;
+  padding: 12px;
   outline: none;
 }
 
 .preview-container {
-  height: 35%;
+  height: 40%;
   border-top: 2px solid #c77dff;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 #previewFrame {
   width: 100%;
-  height: 100%;
+  flex: 1;
   border: none;
   background: #1a1a2e;
-}
-
-#submitBtn {
-  padding: 8px 20px;
-  font-size: 1rem;
-  background: #c77dff;
-  color: #0f0f1a;
-  border: none;
-  cursor: pointer;
-  border-radius: 6px;
-  font-weight: bold;
-  transition: background 0.3s;
-}
-
-#submitBtn:hover {
-  background: #b060e0;
 }
 
 #rightPanel {
   width: 50%;
   border-left: 2px solid #c77dff;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   background: #12121f;
+  overflow: hidden;
 }
 
-#rightPanel h3 {
-  margin-bottom: 10px;
-  color: #c77dff;
+#progressContainer {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 12px;
+  background: #1a1a2e;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.progress-item {
+  flex: 1;
+  font-size: 13px;
+}
+
+.progress-bar {
+  background: #2a2a3e;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  background: #c77dff;
+  transition: width 0.3s;
 }
 
 #taskFrame {
@@ -138,40 +206,101 @@ body {
 }
 
 #overlayMsg {
-  font-size: 2.5rem;
-  margin-bottom: 30px;
+  font-size: 1.8rem;
+  margin-bottom: 20px;
   text-align: center;
-  text-shadow: 0 0 20px #c77dff;
 }
 
 #okBtn {
-  padding: 12px 30px;
-  font-size: 1.2rem;
+  padding: 10px 24px;
   background: #c77dff;
-  color: #0f0f1a;
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
 }
 
+/* Чат модалка */
+#chatModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+.chat-container {
+  width: 380px;
+  background: #1a1a2e;
+  border-radius: 12px;
+  border: 1px solid #c77dff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #2a2a3e;
+  border-bottom: 1px solid #c77dff;
+}
+.chat-messages {
+  height: 280px;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.chat-message {
+  background: #0f0f1a;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.chat-message .name {
+  color: #c77dff;
+  font-weight: bold;
+}
+.chat-input {
+  display: flex;
+  padding: 8px;
+  gap: 5px;
+  border-top: 1px solid #2a2a3e;
+}
+#chatInput {
+  flex: 1;
+  background: #0f0f1a;
+  border: 1px solid #c77dff;
+  color: white;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+#sendChatBtn {
+  background: #c77dff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+@media (max-width: 1024px) {
+  #topBar { padding: 6px 12px; }
+  #playersInfo { gap: 10px; font-size: 0.9rem; }
+  #timerDisplay { font-size: 1rem; }
+  #roomCodeDisplay { font-size: 0.8rem; }
+  #chatBtn, #submitBtn { padding: 4px 12px; font-size: 0.8rem; }
+  .editor-tab, .preview-tab { padding: 4px 10px; font-size: 12px; }
+  #codeEditor { font-size: 12px; padding: 8px; }
+  #progressContainer { gap: 10px; padding: 6px; }
+  .progress-item { font-size: 12px; }
+}
 @media (max-width: 768px) {
-  #mainArea {
-    flex-direction: column;
-    padding-top: 80px;
-  }
-  #leftPanel, #rightPanel {
-    width: 100%;
-    height: 50vh;
-    border-left: none;
-    border-bottom: 2px solid #c77dff;
-  }
-  #rightPanel {
-    border-bottom: none;
-  }
-  #topBar {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-  }
+  #mainArea { flex-direction: column; padding-top: 70px; }
+  #leftPanel, #rightPanel { width: 100%; height: 50vh; border-left: none; border-bottom: 2px solid #c77dff; }
+  .chat-container { width: 90%; }
 }
