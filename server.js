@@ -1,4 +1,4 @@
-// server.js
+// server.js – добавлена более агрессивная чистка мёртвых игроков
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -46,7 +46,6 @@ function emitRoomState(room) {
   io.to(room.code).emit('roomState', buildRoomState(room));
 }
 
-// удалить игроков с неактивными сокетами
 function pruneDeadPlayers(room) {
   const activePlayers = room.players.filter(p => {
     const sock = io.sockets.sockets.get(p.id);
@@ -130,15 +129,16 @@ function replacePlayerSocket(room, oldPlayerId, newSocket) {
 function joinWaitingRoom(socket, code, name, token, callback) {
   const room = rooms[code];
   if (!room) return callback({ success: false, message: 'Комната не найдена' });
-  if (room.started) return callback({ success: false, message: 'Игра уже идёт' });
-  if (room.finished) return callback({ success: false, message: 'Игра завершена' });
-
-  // удаляем "мёртвых" игроков перед проверкой
+  
+  // Жёсткая чистка перед проверкой
   pruneDeadPlayers(room);
   if (room.players.length === 0) {
     delete rooms[code];
     return callback({ success: false, message: 'Комната не найдена' });
   }
+  
+  if (room.started) return callback({ success: false, message: 'Игра уже идёт' });
+  if (room.finished) return callback({ success: false, message: 'Игра завершена' });
 
   detachSocket(socket, true);
 

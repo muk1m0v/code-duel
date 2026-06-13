@@ -1,4 +1,4 @@
-// client.js — добавлено отображение кода комнаты на странице битвы
+// client.js – исправлена синхронизация (двойной вызов requestRoomSync убран)
 const socket = io();
 
 let currentRoomCode = null;
@@ -99,7 +99,7 @@ if (document.getElementById('codeEditor')) {
   if (roomCode) {
     currentRoomCode = roomCode;
 
-    // Показываем код комнаты рядом с кнопкой
+    // Показываем код комнаты
     const roomCodeSpan = document.getElementById('roomCodeValue');
     if (roomCodeSpan) {
       roomCodeSpan.textContent = roomCode;
@@ -190,9 +190,9 @@ if (document.getElementById('codeEditor')) {
       });
     }
 
-    if (socket.connected) {
-      requestRoomSync();
-    }
+    // Убираем двойной вызов: полагаемся только на socket.on('connect')
+    // Если сокет уже подключён, вызов произойдёт в обработчике выше (socket.on('connect'))
+    // Иначе ждём подключения.
 
     socket.on('roomState', (state) => {
       if (state.roomCode !== currentRoomCode) return;
@@ -210,6 +210,8 @@ if (document.getElementById('codeEditor')) {
       if (!res.success) {
         showNotification(res.message);
         submitBtn.disabled = false;
+      } else {
+        // успех – игра завершится через gameOver
       }
     });
 
