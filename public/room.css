@@ -147,29 +147,63 @@ button:hover {
   transform: none;
 }
 
-#viewBtn {
-  margin-left: auto;
-  background: #2d3a5e;
-}
-
 .editor-container {
   flex: 1;
-  min-height: 200px;
+  display: flex;
+  flex-direction: column;
   background: #0a0f1a;
+  position: relative;
+  min-height: 0; /* важно для flex-ребёнка */
+}
+
+/* ===== Редактор с нумерацией строк (исправленный скролл) ===== */
+.editor-wrapper {
+  display: flex;
+  background: #0a0e17;
+  height: 50%;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.line-numbers {
+  width: 42px;
+  background: #0a0e17;
+  color: #5b6e8c;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding: 1rem 0.5rem;
+  text-align: right;
+  user-select: none;
+  border-right: 1px solid #1e293b;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+/* Скрываем полосу прокрутки у номеров строк, но оставляем возможность прокрутки через JS */
+.line-numbers::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
 }
 
 #codeEditor {
-  width: 100%;
-  height: 100%;
+  flex: 1;
   background: #0a0e17;
   border: none;
   color: #e2e8f0;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
   line-height: 1.45;
   padding: 1rem;
   resize: none;
   outline: none;
+  overflow-y: auto;
+  height: 100%;
 }
 
 .preview-container {
@@ -320,99 +354,7 @@ button:hover {
   border-radius: 2rem;
 }
 
-/* ========== СКРОЛЛБАРЫ ========== */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #111827;
-}
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #5b6e8c;
-}
-
-/* ========== АДАПТАЦИЯ ДЛЯ НОУТБУКОВ (13–16 дюймов) ========== */
-@media (max-width: 1400px) {
-  #mainArea {
-    gap: 0.8rem;
-  }
-  .editor-tab {
-    padding: 0.4rem 1rem;
-  }
-  #codeEditor {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 1100px) {
-  #topBar {
-    padding: 0.6rem 1.2rem;
-  }
-  #playersInfo {
-    font-size: 0.85rem;
-  }
-  button {
-    padding: 0.4rem 1rem;
-  }
-}
-
-/* Планшетная вертикаль – переходим в колонку (не ломаем интерфейс) */
-@media (max-width: 900px) {
-  #mainArea {
-    flex-direction: column;
-    height: auto;
-    overflow: auto;
-  }
-  #leftPanel, #rightPanel {
-    min-height: 400px;
-  }
-  body.room {
-    overflow: auto;
-  }
-}
-/* ===== Редактор с нумерацией строк ===== */
-.editor-wrapper {
-  display: flex;
-  background: #0a0e17;
-  height: 100%;
-  position: relative;
-}
-
-.line-numbers {
-  width: 42px;
-  background: #0a0e17;
-  color: #5b6e8c;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  padding: 1rem 0.5rem;
-  text-align: right;
-  user-select: none;
-  border-right: 1px solid #1e293b;
-  overflow-y: hidden;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-#codeEditor {
-  flex: 1;
-  background: #0a0e17;
-  border: none;
-  color: #e2e8f0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  line-height: 1.45;
-  padding: 1rem;
-  resize: none;
-  outline: none;
-}
-
-/* ===== Подсказки (автодополнение) ===== */
+/* ========== ПОДСКАЗКИ (автодополнение) ========== */
 .suggestions {
   position: absolute;
   background: #1e293b;
@@ -440,7 +382,7 @@ button:hover {
   color: white;
 }
 
-/* ===== Офлайн-индикатор ===== */
+/* ========== ОФЛАЙН-ОВЕРЛЕЙ ========== */
 .offline-overlay {
   position: fixed;
   top: 0;
@@ -457,4 +399,59 @@ button:hover {
   color: #facc15;
   flex-direction: column;
   gap: 1rem;
+}
+
+/* ========== СКРОЛЛБАРЫ ========== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5b6e8c;
+}
+
+/* ========== АДАПТАЦИЯ ДЛЯ НОУТБУКОВ ========== */
+@media (max-width: 1400px) {
+  #mainArea {
+    gap: 0.8rem;
+  }
+  .editor-tab {
+    padding: 0.4rem 1rem;
+  }
+  #codeEditor {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  #topBar {
+    padding: 0.6rem 1.2rem;
+  }
+  #playersInfo {
+    font-size: 0.85rem;
+  }
+  button {
+    padding: 0.4rem 1rem;
+  }
+}
+
+@media (max-width: 900px) {
+  #mainArea {
+    flex-direction: column;
+    height: auto;
+    overflow: auto;
+  }
+  #leftPanel, #rightPanel {
+    min-height: 400px;
+  }
+  body.room {
+    overflow: auto;
+  }
 }

@@ -1,4 +1,3 @@
-// editor.js — улучшенный редактор с подсказками, автозакрытием, нумерацией строк и синхронизацией таймера
 const socket = io();
 
 let currentRoomCode = null;
@@ -11,7 +10,7 @@ let totalTimeSeconds = 0;
 let showingMyCode = false;
 let remainingTimeOnStart = null;
 
-// Элементы
+// Элементы DOM
 const editor = document.getElementById('codeEditor');
 const previewFrame = document.getElementById('previewFrame');
 const taskFrame = document.getElementById('taskFrame');
@@ -28,7 +27,6 @@ const closeChatBtn = document.getElementById('closeChatBtn');
 const sendChatBtn = document.getElementById('sendChatBtn');
 const chatInput = document.getElementById('chatInput');
 const chatMessages = document.getElementById('chatMessages');
-const viewBtn = document.getElementById('viewBtn');
 const lineNumbersDiv = document.getElementById('lineNumbers');
 const suggestionsDiv = document.getElementById('suggestions');
 
@@ -48,30 +46,21 @@ function initOfflineDetector() {
 }
 initOfflineDetector();
 
-// ---------- Нумерация строк ----------
+// ---------- Нумерация строк (исправленная синхронизация) ----------
 function updateLineNumbers() {
   const lines = editor.value.split('\n');
   const lineCount = lines.length;
   let numbers = '';
   for (let i = 1; i <= lineCount; i++) numbers += i + '\n';
   lineNumbersDiv.textContent = numbers;
-  lineNumbersDiv.style.height = editor.scrollHeight + 'px';
+  lineNumbersDiv.scrollTop = editor.scrollTop;
 }
+
 editor.addEventListener('scroll', () => {
   lineNumbersDiv.scrollTop = editor.scrollTop;
 });
-editor.addEventListener('input', () => {
-  updateLineNumbers();
-  const val = editor.value;
-  if (currentLang === 'html') htmlCode = val;
-  else cssCode = val;
-  updatePreview();
-  handleAutoCloseTag();   // авто-закрытие тегов
-  showSuggestions();      // вызов подсказок
-});
 
-// ---------- Автозакрытие тегов (HTML) ----------
-let lastTypedChar = '';
+// ---------- Автозакрытие тегов и сниппет ! ----------
 editor.addEventListener('keydown', (e) => {
   if (e.key === '>' && currentLang === 'html') {
     const cursorPos = editor.selectionStart;
@@ -109,10 +98,6 @@ editor.addEventListener('keydown', (e) => {
   }
 });
 
-function handleAutoCloseTag() {
-  // Доп. логика (уже обработано выше)
-}
-
 // ---------- Подсказки HTML/CSS ----------
 const htmlHints = [
   'div', 'span', 'p', 'a', 'img', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -131,20 +116,16 @@ function showSuggestions() {
   const cursorPos = editor.selectionStart;
   const textBefore = editor.value.substring(0, cursorPos);
   let word = '';
-  let startIdx = cursorPos;
-  const lastSpace = textBefore.lastIndexOf(/\s/.exec(textBefore)?.[0]);
   if (currentLang === 'html') {
     const match = textBefore.match(/<(\w*)$/);
     if (match) {
       word = match[1];
-      startIdx = cursorPos - word.length;
       currentSuggestions = htmlHints.filter(h => h.startsWith(word));
     } else currentSuggestions = [];
   } else if (currentLang === 'css') {
     const match = textBefore.match(/([a-z-]+)$/);
     if (match && !match[0].startsWith('</')) {
       word = match[1];
-      startIdx = cursorPos - word.length;
       currentSuggestions = cssHints.filter(h => h.startsWith(word));
     } else currentSuggestions = [];
   }
@@ -167,9 +148,7 @@ function renderSuggestions() {
     const div = document.createElement('div');
     div.textContent = s;
     if (idx === selectedSuggestionIndex) div.classList.add('selected');
-    div.addEventListener('click', () => {
-      applySuggestion(s);
-    });
+    div.addEventListener('click', () => applySuggestion(s));
     suggestionsDiv.appendChild(div);
   });
 }
@@ -191,7 +170,6 @@ function applySuggestion(suggestion) {
   editor.focus();
 }
 
-// Подсказки на клавиши
 editor.addEventListener('keydown', (e) => {
   if (suggestionsDiv.style.display === 'block') {
     if (e.key === 'ArrowDown') {
@@ -211,7 +189,6 @@ editor.addEventListener('keydown', (e) => {
   }
 });
 
-// Получение координат курсора в textarea
 function getCaretCoordinates(element, position) {
   const div = document.createElement('div');
   const style = window.getComputedStyle(element);
@@ -232,7 +209,7 @@ function getCaretCoordinates(element, position) {
   return { left: offsetLeft, top: offsetTop };
 }
 
-// ---------- Остальная логика игры с синхронизацией таймера ----------
+// ---------- Основная игровая логика ----------
 socket.on('connect', () => {
   mySocketId = socket.id;
   requestRoomSync();
@@ -267,33 +244,18 @@ if (roomCode) {
       htmlTab.classList.add('active');
       cssTab.classList.remove('active');
       editor.value = htmlCode;
-      updatePreview();
       updateLineNumbers();
+      updatePreview();
     });
     cssTab.addEventListener('click', () => {
       currentLang = 'css';
       cssTab.classList.add('active');
       htmlTab.classList.remove('active');
       editor.value = cssCode;
-      updatePreview();
       updateLineNumbers();
+      updatePreview();
     });
   }
-
-  viewBtn.addEventListener('click', () => {
-    if (!gameActive) return;
-    showingMyCode = !showingMyCode;
-    if (showingMyCode) {
-      const full = generateFullHTML(htmlCode, cssCode);
-      taskFrame.srcdoc = full;
-      viewBtn.textContent = 'Задание';
-    } else {
-      const currentSrc = taskFrame.getAttribute('data-original-src');
-      if (currentSrc) taskFrame.src = currentSrc;
-      else taskFrame.src = `/tasks/${window.currentTask || 'task1.html'}`;
-      viewBtn.textContent = 'View';
-    }
-  });
 
   function generateFullHTML(html, css) {
     return `<!DOCTYPE html><html><head><style>${css}</style></head><body>${html}</body></html>`;
@@ -302,7 +264,6 @@ if (roomCode) {
   function updatePreview() {
     const full = generateFullHTML(htmlCode, cssCode);
     previewFrame.srcdoc = full;
-    if (showingMyCode && gameActive) taskFrame.srcdoc = full;
   }
 
   function startGame(initialRemainingSec = null) {
@@ -311,8 +272,6 @@ if (roomCode) {
     submitBtn.disabled = false;
     editor.focus();
     updatePreview();
-    showingMyCode = false;
-    viewBtn.textContent = 'View';
     if (timerInterval) clearInterval(timerInterval);
     let remaining = (initialRemainingSec !== null) ? initialRemainingSec : totalTimeSeconds;
     updateTimerDisplay(remaining);
@@ -349,7 +308,6 @@ if (roomCode) {
         targetFrame.src = taskUrl;
         window.currentTask = state.currentTask;
       }
-      // Важно: используем оставшееся время от сервера
       const remaining = state.remainingTime !== null ? state.remainingTime : totalTimeSeconds;
       if (!gameActive) startGame(remaining);
     }
@@ -492,6 +450,15 @@ if (roomCode) {
   editor.value = '';
   updateLineNumbers();
   updatePreview();
+
+  editor.addEventListener('input', () => {
+    updateLineNumbers();
+    const val = editor.value;
+    if (currentLang === 'html') htmlCode = val;
+    else cssCode = val;
+    updatePreview();
+    showSuggestions();
+  });
 
   if (socket.connected) requestRoomSync();
   socket.on('connect', () => requestRoomSync());

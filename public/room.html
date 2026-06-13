@@ -23,10 +23,13 @@
       <div class="editor-tabs">
         <button class="editor-tab active" data-lang="html">HTML</button>
         <button class="editor-tab" data-lang="css">CSS</button>
-        <button id="viewBtn">View</button>
       </div>
       <div class="editor-container">
-        <textarea id="codeEditor" placeholder="Введите HTML/CSS код..."></textarea>
+        <div class="editor-wrapper">
+          <div class="line-numbers" id="lineNumbers"></div>
+          <textarea id="codeEditor" placeholder="Введите HTML/CSS код..."></textarea>
+        </div>
+        <div id="suggestions" class="suggestions"></div>
       </div>
       <div class="preview-container">
         <iframe id="previewFrame" sandbox="allow-same-origin"></iframe>

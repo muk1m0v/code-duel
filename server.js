@@ -16,13 +16,11 @@ app.get('/room', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'room.html'));
 });
 
-// Массив доступных заданий
 const TASKS = ['task1.html', 'task2.html', 'task3.html', 'task4.html', 'task5.html', 'task6.html', 'task7.html', 'task8.html'];
 
 const rooms = {};
 const socketToRoom = new Map();
 
-// Рейтинг
 const RATING_FILE = './rating.json';
 let ratings = {};
 function loadRatings() {
@@ -61,6 +59,11 @@ function cleanName(name) { return String(name || '').trim().slice(0,30) || 'Иг
 function cleanToken(token) { return typeof token === 'string' && token.length && token.length <= 128 ? token : null; }
 
 function buildRoomState(room) {
+  let remainingTime = null;
+  if (room.started && !room.finished && room.startTime) {
+    const elapsed = Math.floor((Date.now() - room.startTime) / 1000);
+    remainingTime = Math.max(0, room.timeLimit - elapsed);
+  }
   return {
     roomCode: room.code,
     players: room.players.map(p => ({ id: p.id, name: p.name })),
@@ -70,7 +73,8 @@ function buildRoomState(room) {
     winnerName: room.winnerName || null,
     timeLimit: room.timeLimit,
     currentTask: room.currentTask || null,
-    progress: room.progress || {}
+    progress: room.progress || {},
+    remainingTime: remainingTime
   };
 }
 function emitRoomState(room) { io.to(room.code).emit('roomState', buildRoomState(room)); }
